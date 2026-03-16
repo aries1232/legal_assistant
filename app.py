@@ -359,9 +359,7 @@ with tab_chat:
 
                 with st.chat_message("assistant"):
                     thinking_messages = [
-                        "Searching across the indexed documents...",
-                        "Comparing the most relevant sections...",
-                        "Drafting a grounded answer...",
+                        "Searching across relevant documents...",
                     ]
                     status = st.status(thinking_messages[0], expanded=False)
                     response_placeholder = st.empty()
