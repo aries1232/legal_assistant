@@ -12,3 +12,4 @@ requests>=2.32.5
 google-genai
 pydantic>=2.0.0
 supabase
+pypdfium2
