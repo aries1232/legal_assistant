@@ -22,22 +22,35 @@ CHUNK_OVERLAP_TOKENS = int(os.getenv("CHUNK_OVERLAP_TOKENS", "50"))
 
 class DocumentIngestor:
     def __init__(self) -> None:
-        self.db = get_chroma_client()
-        self.collection = self.db.get_or_create_collection(CHROMA_COLLECTION)
-        self.vector_store = ChromaVectorStore(chroma_collection=self.collection)
-        self.embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL)
-        self.converter = DocumentConverter()
+        self.db = None
+        self.collection = None
+        self.vector_store: ChromaVectorStore | None = None
+        self.embed_model: HuggingFaceEmbedding | None = None
+        self.converter: DocumentConverter | None = None
         self.parser = SentenceSplitter(
             chunk_size=CHUNK_SIZE_TOKENS,
             chunk_overlap=CHUNK_OVERLAP_TOKENS,
         )
 
+    def _ensure_ready(self) -> None:
+        if self.db is None:
+            self.db = get_chroma_client()
+        if self.collection is None:
+            self.collection = self.db.get_or_create_collection(CHROMA_COLLECTION)
+        if self.vector_store is None:
+            self.vector_store = ChromaVectorStore(chroma_collection=self.collection)
+        if self.embed_model is None:
+            self.embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL)
+        if self.converter is None:
+            self.converter = DocumentConverter()
+
     def _extract_text(self, pdf_bytes: bytes) -> str:
+        self._ensure_ready()
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
             tmp_file.write(pdf_bytes)
             tmp_path = tmp_file.name
         try:
-            result = self.converter.convert(tmp_path)
+            result = self.converter.convert(tmp_path) # type: ignore[union-attr]
             return result.document.export_to_markdown()
         finally:
             try:
@@ -70,6 +83,7 @@ class DocumentIngestor:
             nodes = self.parser.get_nodes_from_documents([doc])
             
             if status_callback: status_callback(f"Generating embeddings for {len(nodes)} chunks...", 75)
+            self._ensure_ready()
             storage_context = StorageContext.from_defaults(vector_store=self.vector_store)
             index = VectorStoreIndex(
                 nodes,

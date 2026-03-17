@@ -26,7 +26,7 @@ except ModuleNotFoundError:
 load_dotenv()
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-GOOGLE_LLM_MODEL = os.getenv("GOOGLE_LLM_MODEL", "gemini-3.1-flash-lite-preview")
+GOOGLE_LLM_MODEL = os.getenv("GOOGLE_LLM_MODEL", "gemini-2.5-flash")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "BAAI/bge-base-en-v1.5")
 CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "legal_documents")
 DEBUG_LOGS = os.getenv("DEBUG_LOGS", "false").lower() in {"1", "true", "yes", "on"}
@@ -38,19 +38,34 @@ if DEBUG_LOGS:
 
 class LegalAssistant:
     def __init__(self) -> None:
-        self.llm = GoogleGenAI(
-            model=GOOGLE_LLM_MODEL,
-            api_key=GOOGLE_API_KEY,
-            max_tokens=1024,
-            temperature=0.1,
-        )
-        self.embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL)
-        self.db = get_chroma_client()
-        self.chroma_collection = self.db.get_or_create_collection(CHROMA_COLLECTION)
-        self.vector_store = ChromaVectorStore(chroma_collection=self.chroma_collection)
-        self.index = VectorStoreIndex.from_vector_store(
-            vector_store=self.vector_store, embed_model=self.embed_model
-        )
+        self.llm: Optional[GoogleGenAI] = None
+        self.embed_model: Optional[HuggingFaceEmbedding] = None
+        self.db = None
+        self.chroma_collection = None
+        self.vector_store: Optional[ChromaVectorStore] = None
+        self.index: Optional[VectorStoreIndex] = None
+
+    def _ensure_ready(self) -> None:
+        if self.llm is None:
+            self.llm = GoogleGenAI(
+                model=GOOGLE_LLM_MODEL,
+                api_key=GOOGLE_API_KEY,
+                max_tokens=1024,
+                temperature=0.1,
+            )
+        if self.embed_model is None:
+            self.embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL)
+        if self.db is None:
+            self.db = get_chroma_client()
+        if self.chroma_collection is None:
+            self.chroma_collection = self.db.get_or_create_collection(CHROMA_COLLECTION)
+        if self.vector_store is None:
+            self.vector_store = ChromaVectorStore(chroma_collection=self.chroma_collection)
+        if self.index is None:
+            self.index = VectorStoreIndex.from_vector_store(
+                vector_store=self.vector_store,
+                embed_model=self.embed_model,
+            )
 
     def _to_chat_messages(
         self, chat_history: Optional[List[Dict[str, Any]]]
@@ -73,6 +88,7 @@ class LegalAssistant:
         return MetadataFilters(filters=filters, condition=FilterCondition.OR) # type: ignore
 
     def _get_chat_engine(self, selected_doc_ids: List[str]) -> CondenseQuestionChatEngine:
+        self._ensure_ready()
         retriever = self._build_retriever(selected_doc_ids)
         query_engine = RetrieverQueryEngine.from_args(
             retriever=retriever,
@@ -85,6 +101,7 @@ class LegalAssistant:
         )
 
     def _build_retriever(self, selected_doc_ids: List[str]) -> VectorIndexRetriever:
+        self._ensure_ready()
         filters = self._build_filters(selected_doc_ids)
         return VectorIndexRetriever(
             index=self.index,

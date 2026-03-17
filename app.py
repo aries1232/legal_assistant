@@ -106,9 +106,20 @@ def get_assistant() -> LegalAssistant:
 def get_ingestor() -> DocumentIngestor:
     return DocumentIngestor()
 
+def load_assistant() -> tuple[LegalAssistant | None, str | None]:
+    try:
+        return get_assistant(), None
+    except Exception as exc:
+        return None, str(exc)
 
-assistant = get_assistant()
-ingestor = get_ingestor()
+
+def load_ingestor() -> tuple[DocumentIngestor | None, str | None]:
+    try:
+        return get_ingestor(), None
+    except Exception as exc:
+        return None, str(exc)
+
+
 storage_bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "legal-docs")
 debug_logs = os.getenv("DEBUG_LOGS", "false").lower() in {"1", "true", "yes", "on"}
 
@@ -140,6 +151,10 @@ with tab_library:
         if not uploaded_files:
             st.info("Select at least one PDF.")
         else:
+            ingestor, ingestor_error = load_ingestor()
+            if ingestor is None:
+                st.error(f"Document ingestion is unavailable: {ingestor_error}")
+                st.stop()
             for uploaded_file in uploaded_files:
                 st.markdown(f"**Processing: {uploaded_file.name}**")
                 progress_text = st.empty()
@@ -354,6 +369,10 @@ with tab_chat:
             if not active_doc_ids:
                 st.warning("No indexed documents available yet. Upload and process a PDF first.")
             else:
+                assistant, assistant_error = load_assistant()
+                if assistant is None:
+                    st.error(f"Chat service is unavailable: {assistant_error}")
+                    st.stop()
                 if st.session_state.chat_locked_doc_ids is None:
                     st.session_state.chat_locked_doc_ids = active_doc_ids
                 st.session_state.messages.append({"role": "user", "content": query})
