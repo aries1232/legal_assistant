@@ -134,8 +134,9 @@ with tab_library:
         type=["pdf"],
         accept_multiple_files=True,
     )
+    has_files = bool(uploaded_files)
 
-    if st.button("Process Uploads", disabled=not uploaded_files):
+    if st.button("Upload", disabled=not has_files, type="primary" if has_files else "secondary"):
         if not uploaded_files:
             st.info("Select at least one PDF.")
         else:
