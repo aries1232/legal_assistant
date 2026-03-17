@@ -141,6 +141,13 @@ with tab_library:
             st.info("Select at least one PDF.")
         else:
             for uploaded_file in uploaded_files:
+                st.markdown(f"**Processing: {uploaded_file.name}**")
+                progress_text = st.empty()
+                progress_bar = st.progress(0)
+                
+                progress_text.caption("Initializing document context...")
+                progress_bar.progress(5)
+
                 doc_id = generate_doc_id()
                 safe_filename = sanitize_filename(uploaded_file.name)
                 file_path = f"docs/{doc_id}/{safe_filename}"
@@ -154,6 +161,9 @@ with tab_library:
                     session_id=st.session_state.session_id,
                 )
 
+                progress_text.caption("Uploading PDF to storage...")
+                progress_bar.progress(15)
+
                 uploaded = supabase_db.upload_pdf_to_storage(
                     bucket=storage_bucket,
                     file_path=file_path,
@@ -165,29 +175,24 @@ with tab_library:
                         ingest_status="failed",
                         ingest_error="Upload to Supabase Storage failed.",
                     )
-                    st.error(f"Upload failed: {uploaded_file.name}")
+                    progress_text.error(f"Upload failed: {uploaded_file.name}")
                     continue
+                
+                def ingest_callback(msg: str, progress: int):
+                    # Progress from ingestion starts at 20, map it clearly
+                    progress_text.caption(msg)
+                    progress_bar.progress(progress)
 
-                with st.status(f"Processing {uploaded_file.name}...", expanded=True) as status_view:
-                    progress_bar = st.progress(0)
-                    
-                    def ingest_callback(msg: str, progress: int):
-                        status_view.update(label=f"Processing {uploaded_file.name}... ({msg})")
-                        progress_bar.progress(progress / 100.0)
-
-                    result = ingestor.ingest_pdf(
-                        filename=uploaded_file.name,
-                        pdf_bytes=file_bytes,
-                        doc_id=doc_id,
-                        status_callback=ingest_callback
-                    )
-                    
-                    if result["ok"]:
-                        status_view.update(label="Complete!", state="complete", expanded=False)
-                    else:
-                        status_view.update(label="Failed!", state="error", expanded=True)
-
+                result = ingestor.ingest_pdf(
+                    filename=uploaded_file.name,
+                    pdf_bytes=file_bytes,
+                    doc_id=doc_id,
+                    status_callback=ingest_callback
+                )
+                
                 if result["ok"]:
+                    progress_text.empty()
+                    progress_bar.empty()
                     supabase_db.update_document_status(
                         doc_id=doc_id,
                         ingest_status="ready",
