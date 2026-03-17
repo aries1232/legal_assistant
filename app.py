@@ -358,10 +358,8 @@ with tab_chat:
                 }
 
                 with st.chat_message("assistant"):
-                    thinking_messages = [
-                        "Searching across relevant documents...",
-                    ]
-                    status = st.status(thinking_messages[0], expanded=False)
+                    status_message = "Searching across relevant documents..."
+                    status = st.status(status_message, expanded=False)
                     response_placeholder = st.empty()
 
                     stream_response = assistant.stream_query(
@@ -374,7 +372,10 @@ with tab_chat:
                         try:
                             for token in stream_response.response_gen:
                                 if not full_response:
-                                    status.update(label=thinking_messages[1], state="running")
+                                    status.update(
+                                        label=status_message,
+                                        state="running",
+                                    )
                                 full_response += token
                                 debug_info["stream_tokens"] += 1
                                 response_placeholder.markdown(full_response + "▌")
@@ -384,7 +385,10 @@ with tab_chat:
                     normalized_response = full_response.strip().lower()
                     if (not full_response.strip()) or normalized_response == "empty response":
                         debug_info["fallback_used"] = True
-                        status.update(label=thinking_messages[2], state="running")
+                        status.update(
+                            label=status_message,
+                            state="running",
+                        )
                         result = assistant.query(
                             query,
                             selected_doc_ids=active_doc_ids, # type: ignore
