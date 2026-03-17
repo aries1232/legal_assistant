@@ -168,12 +168,24 @@ with tab_library:
                     st.error(f"Upload failed: {uploaded_file.name}")
                     continue
 
-                with st.spinner(f"Extracting and indexing {uploaded_file.name}..."):
+                with st.status(f"Processing {uploaded_file.name}...", expanded=True) as status_view:
+                    progress_bar = st.progress(0)
+                    
+                    def ingest_callback(msg: str, progress: int):
+                        status_view.update(label=f"Processing {uploaded_file.name}... ({msg})")
+                        progress_bar.progress(progress / 100.0)
+
                     result = ingestor.ingest_pdf(
                         filename=uploaded_file.name,
                         pdf_bytes=file_bytes,
                         doc_id=doc_id,
+                        status_callback=ingest_callback
                     )
+                    
+                    if result["ok"]:
+                        status_view.update(label="Complete!", state="complete", expanded=False)
+                    else:
+                        status_view.update(label="Failed!", state="error", expanded=True)
 
                 if result["ok"]:
                     supabase_db.update_document_status(

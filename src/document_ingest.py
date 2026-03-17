@@ -45,8 +45,9 @@ class DocumentIngestor:
             except OSError:
                 pass
 
-    def ingest_pdf(self, filename: str, pdf_bytes: bytes, doc_id: str) -> Dict[str, Any]:
+    def ingest_pdf(self, filename: str, pdf_bytes: bytes, doc_id: str, status_callback=None) -> Dict[str, Any]:
         try:
+            if status_callback: status_callback("Extracting text with Docling...", 20)
             extracted_text = self._extract_text(pdf_bytes)
             if not extracted_text.strip():
                 return {
@@ -57,6 +58,7 @@ class DocumentIngestor:
                     "error": "No extractable text found in PDF.",
                 }
 
+            if status_callback: status_callback("Parsing and splitting text...", 50)
             doc = Document(
                 text=extracted_text,
                 metadata={
@@ -65,15 +67,18 @@ class DocumentIngestor:
                     "source_type": "pdf",
                 },
             )
+            nodes = self.parser.get_nodes_from_documents([doc])
+            
+            if status_callback: status_callback(f"Generating embeddings for {len(nodes)} chunks...", 75)
             storage_context = StorageContext.from_defaults(vector_store=self.vector_store)
-            index = VectorStoreIndex.from_documents(
-                [doc],
+            index = VectorStoreIndex(
+                nodes,
                 storage_context=storage_context,
                 embed_model=self.embed_model,
-                transformations=[self.parser],
                 show_progress=False,
             )
-            nodes = self.parser.get_nodes_from_documents([doc])
+            
+            if status_callback: status_callback("Finalizing index...", 100)
             return {
                 "ok": True,
                 "doc_id": doc_id,
