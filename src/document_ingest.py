@@ -14,10 +14,10 @@ try:
 except ModuleNotFoundError:
     from chroma_client import get_chroma_client
 
-EMBED_MODEL = os.getenv("EMBED_MODEL", "BAAI/bge-base-en-v1.5")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "BAAI/bge-small-en-v1.5")
 CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "legal_documents")
-CHUNK_SIZE_TOKENS = int(os.getenv("CHUNK_SIZE_TOKENS", "1000"))
-CHUNK_OVERLAP_TOKENS = int(os.getenv("CHUNK_OVERLAP_TOKENS", "200"))
+CHUNK_SIZE_TOKENS = int(os.getenv("CHUNK_SIZE_TOKENS", "512"))
+CHUNK_OVERLAP_TOKENS = int(os.getenv("CHUNK_OVERLAP_TOKENS", "50"))
 
 
 class DocumentIngestor:
