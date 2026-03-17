@@ -14,7 +14,7 @@ try:
 except ModuleNotFoundError:
     from chroma_client import get_chroma_client
 
-EMBED_MODEL = os.getenv("EMBED_MODEL", "BAAI/bge-small-en-v1.5")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "BAAI/bge-base-en-v1.5")
 CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "legal_documents")
 CHUNK_SIZE_TOKENS = int(os.getenv("CHUNK_SIZE_TOKENS", "512"))
 CHUNK_OVERLAP_TOKENS = int(os.getenv("CHUNK_OVERLAP_TOKENS", "50"))
@@ -87,12 +87,20 @@ class DocumentIngestor:
                 "error": None,
             }
         except Exception as e:
+            error_message = str(e)
+            if "expecting embedding with dimension of 768, got 384" in error_message.lower():
+                error_message = (
+                    "Embedding model mismatch: the Chroma collection expects 768-dimensional vectors, "
+                    f"but the configured model `{EMBED_MODEL}` produced 384-dimensional vectors. "
+                    "Use `BAAI/bge-base-en-v1.5` for both ingestion and querying, or recreate the collection "
+                    "if you intentionally want to switch models."
+                )
             return {
                 "ok": False,
                 "doc_id": doc_id,
                 "filename": filename,
                 "chunk_count": 0,
-                "error": str(e),
+                "error": error_message,
             }
 
 

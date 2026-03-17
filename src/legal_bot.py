@@ -27,7 +27,7 @@ load_dotenv()
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GOOGLE_LLM_MODEL = os.getenv("GOOGLE_LLM_MODEL", "gemini-3.1-flash-lite-preview")
-EMBED_MODEL = os.getenv("EMBED_MODEL", "BAAI/bge-small-en-v1.5")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "BAAI/bge-base-en-v1.5")
 CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "legal_documents")
 DEBUG_LOGS = os.getenv("DEBUG_LOGS", "false").lower() in {"1", "true", "yes", "on"}
 
