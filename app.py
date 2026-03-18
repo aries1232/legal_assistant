@@ -139,10 +139,10 @@ if "_latest_debug" not in st.session_state:
 tab_library, tab_chat = st.tabs(["Document Library", "Legal Assistant"])
 
 with tab_library:
-    st.subheader("Upload PDFs")
+    st.subheader("Upload Documents")
     uploaded_files = st.file_uploader(
-        "Upload one or more PDFs",
-        type=["pdf"],
+        "Upload one or more Documents",
+        type=["pdf", "docx", "txt", "md", "csv"],
         accept_multiple_files=True,
     )
     has_files = bool(uploaded_files)
@@ -198,9 +198,9 @@ with tab_library:
                     progress_text.caption(msg)
                     progress_bar.progress(progress)
 
-                result = ingestor.ingest_pdf(
+                result = ingestor.ingest_document(
                     filename=uploaded_file.name,
-                    pdf_bytes=file_bytes,
+                    file_bytes=file_bytes,
                     doc_id=doc_id,
                     status_callback=ingest_callback
                 )

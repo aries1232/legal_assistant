@@ -1,9 +1,10 @@
 import os
-import tempfile
+import io
 import uuid
 from typing import Any, Dict, List
 
-from docling.document_converter import DocumentConverter
+import fitz  # PyMuPDF
+import docx
 from llama_index.core import Document, StorageContext, VectorStoreIndex
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -41,34 +42,43 @@ class DocumentIngestor:
             self.vector_store = ChromaVectorStore(chroma_collection=self.collection)
         if self.embed_model is None:
             self.embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL)
-        if self.converter is None:
-            self.converter = DocumentConverter()
 
-    def _extract_text(self, pdf_bytes: bytes) -> str:
+    def _extract_text(self, filename: str, file_bytes: bytes) -> str:
         self._ensure_ready()
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-            tmp_file.write(pdf_bytes)
-            tmp_path = tmp_file.name
-        try:
-            result = self.converter.convert(tmp_path) # type: ignore[union-attr]
-            return result.document.export_to_markdown()
-        finally:
-            try:
-                os.remove(tmp_path)
-            except OSError:
-                pass
+        ext = os.path.splitext(filename)[1].lower()
+        extracted_text = ""
 
-    def ingest_pdf(self, filename: str, pdf_bytes: bytes, doc_id: str, status_callback=None) -> Dict[str, Any]:
         try:
-            if status_callback: status_callback("Extracting text with Docling...", 20)
-            extracted_text = self._extract_text(pdf_bytes)
+            if ext == ".pdf":
+                # Use PyMuPDF for fast local PDF extraction
+                doc = fitz.open(stream=file_bytes, filetype="pdf")
+                extracted_text = "\n".join([page.get_text() for page in doc])
+                doc.close()
+            elif ext == ".docx":
+                # Use python-docx for DOCX files
+                doc = docx.Document(io.BytesIO(file_bytes))
+                extracted_text = "\n".join([para.text for para in doc.paragraphs])
+            elif ext in [".txt", ".md", ".csv"]:
+                # Native fast text decoding
+                extracted_text = file_bytes.decode("utf-8", errors="replace")
+            else:
+                raise ValueError(f"Unsupported file format: {ext}")
+        except Exception as e:
+            print(f"Error extracting text from {filename}: {e}")
+            
+        return extracted_text
+
+    def ingest_document(self, filename: str, file_bytes: bytes, doc_id: str, status_callback=None) -> Dict[str, Any]:
+        try:
+            if status_callback: status_callback(f"Extracting text from {filename}...", 20)
+            extracted_text = self._extract_text(filename, file_bytes)
             if not extracted_text.strip():
                 return {
                     "ok": False,
                     "doc_id": doc_id,
                     "filename": filename,
                     "chunk_count": 0,
-                    "error": "No extractable text found in PDF.",
+                    "error": "No extractable text found in document.",
                 }
 
             if status_callback: status_callback("Parsing and splitting text...", 50)
@@ -77,7 +87,7 @@ class DocumentIngestor:
                 metadata={
                     "doc_id": doc_id,
                     "filename": filename,
-                    "source_type": "pdf",
+                    "source_type": os.path.splitext(filename)[1].lower().strip('.'),
                 },
             )
             nodes = self.parser.get_nodes_from_documents([doc])
