@@ -151,14 +151,14 @@ class SupabaseChatDB:
             print(f"Error soft deleting document in Supabase: {e}")
             return False
 
-    def delete_pdf_from_storage(self, bucket: str, file_path: str) -> bool:
+    def delete_file_from_storage(self, bucket: str, file_path: str) -> bool:
         if not self.is_connected():
             return False
         try:
             self.client.storage.from_(bucket).remove([file_path])
             return True
         except Exception as e:
-            print(f"Error deleting PDF from Supabase Storage: {e}")
+            print(f"Error deleting file from Supabase storage: {e}")
             return False
 
     def download_pdf_from_storage(self, bucket: str, file_path: str) -> Optional[bytes]:

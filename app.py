@@ -266,20 +266,26 @@ with tab_library:
                                 "Delete", key=f"delete_doc_{doc_id}", use_container_width=True
                             ):
                                 deleted = supabase_db.soft_delete_document(doc_id)
+                                
+                                # Remove document from ChromaDB
+                                db_removed = ingestor.delete_document(doc_id)
+                                
                                 file_path = str(doc.get("file_path") or "")
                                 storage_removed = True
                                 if file_path:
-                                    storage_removed = supabase_db.delete_pdf_from_storage(
+                                    storage_removed = supabase_db.delete_file_from_storage(
                                         bucket=storage_bucket,
                                         file_path=file_path,
                                     )
                                 if deleted:
-                                    if storage_removed:
+                                    if storage_removed and db_removed:
                                         st.success(f"Deleted {doc.get('filename')}")
                                     else:
                                         st.warning(
-                                            "Marked deleted in library, but storage delete failed for "
-                                            f"{doc.get('filename')}"
+                                            f"Deleted {doc.get('filename')}, but failed to remove from "
+                                            f"{'storage' if not storage_removed else ''}"
+                                            f"{' and ' if not storage_removed and not db_removed else ''}"
+                                            f"{'vector database' if not db_removed else ''}."
                                         )
                                     st.rerun()
                                 else:

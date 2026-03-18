@@ -128,5 +128,18 @@ class DocumentIngestor:
             }
 
 
+    def delete_document(self, doc_id: str) -> bool:
+        """Removes all embeddings associated with a doc_id from ChromaDB."""
+        try:
+            self._ensure_ready()
+            if self.collection:
+                self.collection.delete(where={"doc_id": doc_id})
+                return True
+            return False
+        except Exception as e:
+            print(f"Error deleting from ChromaDB: {e}")
+            return False
+
+
 def generate_doc_id() -> str:
     return str(uuid.uuid4())
