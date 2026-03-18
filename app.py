@@ -268,7 +268,10 @@ with tab_library:
                                 deleted = supabase_db.soft_delete_document(doc_id)
                                 
                                 # Remove document from ChromaDB
-                                db_removed = ingestor.delete_document(doc_id)
+                                ingestor, _ = load_ingestor()
+                                db_removed = False
+                                if ingestor:
+                                    db_removed = ingestor.delete_document(doc_id)
                                 
                                 file_path = str(doc.get("file_path") or "")
                                 storage_removed = True
